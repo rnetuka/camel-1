@@ -48,6 +48,9 @@ public class Pipeline extends AsyncProcessorSupport implements Navigate<Processo
     private List<AsyncProcessor> processors;
     private String id;
 
+    private PipelineExchangeAdjuster exchangeAdjuster;
+
+
     public Pipeline(CamelContext camelContext, Collection<Processor> processors) {
         this.camelContext = camelContext;
         this.processors = processors.stream().map(AsyncProcessorConverterHelper::convert).collect(Collectors.toList());
@@ -79,6 +82,10 @@ public class Pipeline extends AsyncProcessorSupport implements Navigate<Processo
         return new Pipeline(camelContext, toBeProcessed);
     }
 
+    public void setExchangeAdjuster(PipelineExchangeAdjuster exchangeAdjuster) {
+        this.exchangeAdjuster = exchangeAdjuster;
+    }
+
     @Override
     public boolean process(Exchange exchange, AsyncCallback callback) {
         if (exchange.isTransacted()) {
@@ -103,6 +110,11 @@ public class Pipeline extends AsyncProcessorSupport implements Navigate<Processo
 
             // get the next processor
             AsyncProcessor processor = processors.next();
+	    
+            // correct or adjust exchange data if necessary
+            if (exchangeAdjuster != null) {
+                exchangeAdjuster.adjustExchange(nextExchange, processor);
+            }
 
             processor.process(exchange, doneSync ->
                     ReactiveHelper.schedule(() -> doProcess(exchange, callback, processors, false),
