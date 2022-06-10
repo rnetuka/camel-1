@@ -16,6 +16,7 @@
  */
 package org.apache.camel.component.file;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class FileConsumerResumeStrategyTest extends ContextTestSupport {
 
     private static class TestFileSetResumeAdapter implements FileResumeAdapter, DirectoryEntriesResumeAdapter {
-        private final List<String> processedFiles = Arrays.asList("0.txt", "1.txt", "2.txt");
+        private final List<Path> processedFiles = Arrays.asList(Path.of("0.txt"), Path.of("1.txt"), Path.of("2.txt"));
         private DirectoryEntries resumeSet;
 
         @Override
@@ -51,8 +52,9 @@ public class FileConsumerResumeStrategyTest extends ContextTestSupport {
 
         @Override
         public void resume() {
-            DirectoryEntries.doResume(resumeSet, f -> !processedFiles.contains(f.getName()));
+            DirectoryEntries.doResume(resumeSet, path -> !processedFiles.contains(path.getFileName()));
         }
+
     }
 
     private final TestFileSetResumeAdapter adapter = new TestFileSetResumeAdapter();
@@ -80,9 +82,7 @@ public class FileConsumerResumeStrategyTest extends ContextTestSupport {
         // only expect 4 of the 6 sent
         assertMockEndpointsSatisfied();
 
-        assertTrue(adapter.resumeSet.hasResumables(), "The resume set should have resumables in this scenario");
-        assertNotNull(adapter.resumeSet.resumed(), "The list of resumables should not be null");
-        assertEquals(4, adapter.resumeSet.resumed().length, "There should be exactly 4 resumables");
+        assertEquals(4, adapter.resumeSet.resumed().count(), "There should be exactly 4 resumables");
     }
 
     private void setOffset(Exchange exchange) {
